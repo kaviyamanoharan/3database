@@ -1,9 +1,6 @@
 __import__('pysqlite3')
-
 import sys
-
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
- 
 import pandas as pd
 from sqlalchemy import create_engine, text
 import streamlit as st
@@ -54,7 +51,6 @@ class DatabaseAgent(Workflow):
         self.engine = self.create_db_connection()
         self.vn.run_sql = self.run_query
         self.vn.run_sql_is_set = True
-        
 
     def create_db_connection(self):
         """Create a database connection dynamically based on the selected type."""
@@ -137,11 +133,6 @@ class DatabaseAgent(Workflow):
     - Use ANSI SQL-compatible syntax supported by AWS Athena.
     - Athena requires table and column names to be case-sensitive.
     - Use the `FROM database_name.table_name` format to qualify table names.
-    - For filtering text columns based on user queries:
-      - **Prefer `LIKE '%keyword%'`** when searching for words in text columns.
-      - If available, **use `CONTAINS(column_name, 'keyword')`** for full-text search.
-      - **Do NOT use `=` for text-based searches** unless checking for an exact match.
-    - Use `DISTINCT` to ensure unique values where necessary.
     """,
            "Azure Synapse":"""
 
@@ -176,26 +167,17 @@ class DatabaseAgent(Workflow):
     {db_specific_instructions}
  
     4. **Query Construction Guidelines**:
-    - All the queries are asked in the context of Nexturn,therefore omit the word "Nexturn"
     - Use only the table names, column names, and relationships explicitly provided in the schema.
     - Fully qualify all column names with their respective table names, especially when columns with the same name appear in multiple tables.
     - If the schema does not contain all the necessary information for the query, provide a detailed explanation of why the query cannot be completed.
     - Use `AS` to alias columns or tables when appropriate for clarity, but do not deviate from the schema.
     - Convert the following natural language query into an SQL query. When filtering text columns, use the CONTAINS clause instead of the WHERE clause with = or LIKE, unless an exact match is explicitly requested. Ensure the query is correctly formatted for execution.
-    - Use the `FROM database_name.table_name` format to qualify table names.
-    - For filtering text columns based on user queries:
-      - **Prefer `LIKE '%keyword%'`** when searching for words in text columns.
-      - If available, **use `CONTAINS(column_name, 'keyword')`** for full-text search.
-      - **Do NOT use `=` for text-based searches** unless checking for an exact match.
-    - Use `DISTINCT` to ensure unique values where necessary.
-    -Example:list down all the FP contracts at Nexturn-"SELECT * FROM your_tableWHERE your_column LIKE '%FP%"
  
     5. **Validation Checklist**:
     - Double-check that all table and column names in the query exactly match the schema.
     - Ensure that relationships between tables (if used) align with those described in the schema.
     - Confirm that the query fully addresses the question within the constraints of the schema.
     - Confirm that all column references are fully qualified to prevent ambiguity errors.
-    - Verify that text searches use CONTAINS() for better performance with long text fields.
  
     6. **Output**:
     - If the query can be written, return only the SQL query.
@@ -259,7 +241,7 @@ def main():
         db_credentials["region_name"] = st.text_input("AWS Region")
         db_credentials["db_name"] = st.text_input("Database Name")
         db_credentials["s3_output_location"] = st.text_input("S3 Output Location")
-        embedding_path='embedding_aws_matrix2'
+        embedding_path='embedding_aws_matrix1'
     elif db_type == "Azure Synapse":
         db_credentials["server"] = st.text_input("Server")
         db_credentials["database"] = st.text_input("Database Name")
@@ -274,19 +256,17 @@ def main():
     if st.button("Connect"):
         #st.write("Selected Embedding:", embedding_path)
         with open('secret.key', 'rb') as key_file:
-                key = key_file.read()
-    
-                cipher_suite = Fernet(key)
-    
-            # Load the encrypted configuration data
-        with open('config.enc', 'r') as config_file:
-                encrypted_data = json.load(config_file)
-        decrypted_credentials = json.loads(cipher_suite.decrypt(encrypted_data).decode())
-        API_KEY = decrypted_credentials.get("api_key", "")
-    
-            # Decrypt the sensitive information
+            key = key_file.read()
+ 
+        cipher_suite = Fernet(key)
+ 
+        # Load the encrypted configuration data
+        with open('config.json', 'r') as config_file:
+            encrypted_data = json.load(config_file)
+ 
+        # Decrypt the sensitive information
         data = {key: cipher_suite.decrypt(value.encode()).decode() for key, value in encrypted_data.items()}
-        vn = MyVanna(config={'api_key': API_KEY, 
+        vn = MyVanna(config={'api_key': data["API_KEY"], 
                              'model': 'gpt-3.5-turbo', 'temperature': 0.2,'path': embedding_path})
         database_agent = DatabaseAgent(vn=vn, db_type=db_type, db_credentials=db_credentials)
         st.session_state["database_agent"] = database_agent
