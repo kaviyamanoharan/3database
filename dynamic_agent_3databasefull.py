@@ -83,7 +83,7 @@ class DatabaseAgent(Workflow):
              project_id = self.db_credentials.get("project_id")
              dataset_name = self.db_credentials.get("dataset_name")
              # Path to your service account key
-             service_account_key = r'colab-poc-444604-72bf522b92ea.json'
+             service_account_key = r'encrypted_json.json'
              credentials = service_account.Credentials.from_service_account_file(service_account_key)
              # Create the SQLAlchemy engine URL with the service account credentials
              engine_url = f"bigquery://{project_id}/{dataset_name}?credentials_path={service_account_key}"
